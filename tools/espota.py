@@ -13,6 +13,7 @@
 # python espota.py -i <ESP_IP_addr> -I <Host_IP_addr> -p <ESP_port> -P <Host_port> [-a password] -f <sketch.bin>
 # Or to upload SPIFFS image:
 # python espota.py -i <ESP_IP_addr> -I <Host_IP_addr> -p <ESP_port> -P <HOST_port> [-a password] -s -f <spiffs.bin>
+# If authentication is required, omitting --auth prompts for the password without echoing it.
 #
 # Changes
 # 2015-09-18:
@@ -60,6 +61,8 @@ import socket
 import sys
 import os
 import argparse
+import getpass
+import warnings
 import logging
 import hashlib
 import random
@@ -346,6 +349,16 @@ def serve(  # noqa: C901
             # - 32 chars = Old MD5 protocol (pre-3.3.1)
             # - 64 chars = New SHA256 protocol (3.3.1+)
 
+            if password is None and nonce_length in (32, 64):
+                try:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("error", getpass.GetPassWarning)
+                        password = getpass.getpass("OTA password: ")
+                except (getpass.GetPassWarning, EOFError, KeyboardInterrupt):
+                    logging.error("Password input unavailable or cancelled. Use --auth for non-interactive uploads.")
+                    sock.close()
+                    return 1
+
             if nonce_length == 32:
                 # Scenario 1: Old device (pre-3.3.1) using MD5 protocol
                 logging.info("Detected old MD5 protocol (pre-3.3.1)")
@@ -617,7 +630,14 @@ def parse_args(unparsed_args):
     )
 
     # authentication
-    parser.add_argument("-a", "--auth", dest="auth", help="Set authentication password.", action="store", default="")
+    parser.add_argument(
+        "-a",
+        "--auth",
+        dest="auth",
+        help="Set authentication password. If omitted, prompt when the device requires authentication.",
+        action="store",
+        default=None,
+    )
     parser.add_argument(
         "-m",
         "--md5-target",

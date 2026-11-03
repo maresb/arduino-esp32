@@ -697,7 +697,9 @@ def main(args):
         log_level = logging.DEBUG
 
     logging.basicConfig(level=log_level, format="%(asctime)-8s [%(levelname)s]: %(message)s", datefmt="%H:%M:%S")
-    logging.debug("Options: %s", str(options))
+    log_options = vars(options).copy()
+    log_options["auth"] = "<redacted>" if options.auth is not None else None
+    logging.debug("Options: %s", log_options)
 
     # check options
     global PROGRESS

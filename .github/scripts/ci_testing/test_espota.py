@@ -2,6 +2,7 @@
 
 import getpass
 import importlib.util
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
@@ -119,3 +120,12 @@ def test_failed_invitation_does_not_prompt(upload):
     assert upload.run() == 1
     upload.prompt.assert_not_called()
     upload.authenticate.assert_not_called()
+
+
+@pytest.mark.parametrize("args", [[], ["--auth=" + PASSWORD]])
+def test_debug_output_does_not_include_password(upload, caplog, args):
+    caplog.set_level(logging.DEBUG)
+    assert upload.run("--debug", *args) == 0
+    assert "Options:" in caplog.text
+    assert PASSWORD not in caplog.text
+    assert repr(PASSWORD) not in caplog.text

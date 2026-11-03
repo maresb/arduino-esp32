@@ -297,6 +297,19 @@ def authenticate(
         return False, str(e)
 
 
+def has_windows_console_input():
+    import ctypes
+    import msvcrt
+
+    # isatty() also accepts NUL on Windows; check the actual stdin handle.
+    try:
+        handle = msvcrt.get_osfhandle(sys.stdin.fileno())
+        mode = ctypes.c_ulong()
+        return bool(ctypes.windll.kernel32.GetConsoleMode(ctypes.c_void_p(handle), ctypes.byref(mode)))
+    except (AttributeError, OSError, ValueError):
+        return False
+
+
 def serve(  # noqa: C901
     remote_addr, local_addr, remote_port, local_port, password, md5_target, filename, command=FLASH
 ):
@@ -351,6 +364,8 @@ def serve(  # noqa: C901
 
             if password is None and nonce_length in (32, 64):
                 try:
+                    if os.name == "nt" and not has_windows_console_input():
+                        raise EOFError
                     with warnings.catch_warnings():
                         warnings.simplefilter("error", getpass.GetPassWarning)
                         password = getpass.getpass("OTA password: ")
